@@ -6,7 +6,7 @@ export const allProducts = [
     breed: 'Golden Retriever',
     age: 2,
     description: 'Friendly and energetic puppy.',
-    image: 'https://storage.googleapis.com/furbabies-petstore/dog-001.jpg',
+    image: 'https://storage.googleapis.com/furbabies-petstore/pet/dog-001.jpg',
     featured: true,
     price: 500,
     category: 'pets'
@@ -18,7 +18,7 @@ export const allProducts = [
     breed: 'Persian',
     age: 3,
     description: 'Beautiful long-haired cat.',
-    image: 'https://storage.googleapis.com/furbabies-petstore/cat-001.jpg',
+    image: 'https://storage.googleapis.com/furbabies-petstore/pet/cat-001.jpg',
     featured: false,
     price: 300,
     category: 'pets'
