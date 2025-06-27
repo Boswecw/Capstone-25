@@ -40,13 +40,13 @@ router.post('/',
   handleValidationErrors,
   async (req, res) => {
     try {
-      const { name, email, subject, message } = req.body;
-      
+      const { name, email, subject } = req.body;
+
       // Basic contact form logic - you can enhance this later
       console.log('📧 Contact form submission:', { name, email, subject });
-      
+
       // TODO: Save to database, send email, etc.
-      
+
       res.status(201).json({
         success: true,
         message: 'Thank you for your message! We will get back to you soon.',
@@ -57,7 +57,7 @@ router.post('/',
           submittedAt: new Date()
         }
       });
-      
+
     } catch (error) {
       console.error('Contact form error:', error);
       res.status(500).json({

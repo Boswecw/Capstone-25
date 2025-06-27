@@ -4,29 +4,22 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { fileURLToPath } from 'url';
 
-// ES6 module __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class CloudStorageService {
   constructor() {
-    // Initialize Google Cloud Storage
     this.storage = new Storage({
-      // Option 1: Use service account key file (for local development)
       keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE || path.join(__dirname, '../config/google-cloud-storage-key.json'),
       projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-      
-      // Option 2: Use Application Default Credentials (for production)
-      // This will automatically use environment credentials on Render/GCP
     });
-    
+
     this.bucketName = process.env.GOOGLE_CLOUD_BUCKET_NAME || 'furbabies-pet-images';
     this.bucket = this.storage.bucket(this.bucketName);
-    
+
     console.log(`🪣 Cloud Storage initialized - Bucket: ${this.bucketName}`);
   }
 
-  // Test connection to bucket
   async testConnection() {
     try {
       const [exists] = await this.bucket.exists();
@@ -42,25 +35,22 @@ class CloudStorageService {
     }
   }
 
-  // Upload image to Cloud Storage
   async uploadImage(fileBuffer, originalName, folder = 'pets', petId = null) {
     try {
       const fileExtension = path.extname(originalName);
       const uniqueId = uuidv4();
       const timestamp = Date.now();
-      
-      // Create unique filename
+
       const fileName = petId 
         ? `${folder}/${petId}-${timestamp}-${uniqueId}${fileExtension}`
         : `${folder}/${timestamp}-${uniqueId}${fileExtension}`;
 
       const file = this.bucket.file(fileName);
-      
-      // Upload options
+
       const options = {
         metadata: {
           contentType: this.getContentType(fileExtension),
-          cacheControl: 'public, max-age=31536000', // Cache for 1 year
+          cacheControl: 'public, max-age=31536000',
           metadata: {
             originalName: originalName,
             uploadedAt: new Date().toISOString(),
@@ -69,16 +59,12 @@ class CloudStorageService {
             uploadedBy: 'furbabies-app'
           }
         },
-        resumable: fileBuffer.length > 5 * 1024 * 1024, // Use resumable for files > 5MB
+        resumable: fileBuffer.length > 5 * 1024 * 1024,
       };
 
-      // Upload the file
       await file.save(fileBuffer, options);
-
-      // Make file publicly accessible
       await file.makePublic();
 
-      // Return file information
       const result = {
         fileName: fileName,
         originalName: originalName,
@@ -101,18 +87,15 @@ class CloudStorageService {
     }
   }
 
-  // Generate and upload thumbnail
   async uploadThumbnail(imageBuffer, originalFileName, folder = 'thumbnails') {
     try {
-      // Import sharp dynamically (optional dependency)
       const sharp = await import('sharp').catch(() => null);
-      
+
       if (!sharp) {
         console.warn('⚠️  Sharp not installed - skipping thumbnail generation');
         return null;
       }
-      
-      // Resize image to thumbnail (300x300, maintain aspect ratio)
+
       const thumbnailBuffer = await sharp.default(imageBuffer)
         .resize(300, 300, {
           fit: 'inside',
@@ -132,12 +115,10 @@ class CloudStorageService {
       return result;
     } catch (error) {
       console.error('❌ Thumbnail creation error:', error);
-      // Don't throw - thumbnails are optional
       return null;
     }
   }
 
-  // Delete image from bucket
   async deleteImage(fileName) {
     try {
       await this.bucket.file(fileName).delete();
@@ -149,7 +130,6 @@ class CloudStorageService {
     }
   }
 
-  // Get image metadata
   async getImageMetadata(fileName) {
     try {
       const file = this.bucket.file(fileName);
@@ -160,7 +140,6 @@ class CloudStorageService {
     }
   }
 
-  // List images in folder
   async listImages(folder = '', maxResults = 100) {
     try {
       const [files] = await this.bucket.getFiles({
@@ -182,11 +161,10 @@ class CloudStorageService {
     }
   }
 
-  // Generate signed URL for temporary access (useful for private files)
   async generateSignedUrl(fileName, expirationMinutes = 60) {
     try {
       const file = this.bucket.file(fileName);
-      
+
       const [url] = await file.getSignedUrl({
         action: 'read',
         expires: Date.now() + expirationMinutes * 60 * 1000,
@@ -198,7 +176,6 @@ class CloudStorageService {
     }
   }
 
-  // Helper method to determine content type
   getContentType(fileExtension) {
     const contentTypes = {
       '.jpg': 'image/jpeg',
@@ -212,7 +189,6 @@ class CloudStorageService {
     return contentTypes[fileExtension.toLowerCase()] || 'image/jpeg';
   }
 
-  // Batch upload multiple images
   async uploadMultipleImages(files, folder = 'pets', petId = null) {
     const results = [];
     const errors = [];
@@ -228,8 +204,7 @@ class CloudStorageService {
           petId
         );
         results.push(result);
-        
-        // Optionally create thumbnail
+
         const thumbnail = await this.uploadThumbnail(
           file.buffer, 
           file.originalname, 
@@ -238,7 +213,7 @@ class CloudStorageService {
         if (thumbnail) {
           result.thumbnail = thumbnail;
         }
-        
+
       } catch (error) {
         errors.push({
           fileName: file.originalname,
@@ -251,10 +226,9 @@ class CloudStorageService {
     return { results, errors };
   }
 
-  // Validate image file
   isValidImageFile(file) {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 10 * 1024 * 1024;
 
     if (!allowedTypes.includes(file.mimetype)) {
       throw new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
@@ -268,10 +242,7 @@ class CloudStorageService {
   }
 }
 
-// Create singleton instance
 const cloudStorageService = new CloudStorageService();
-
-// Test connection on startup
 cloudStorageService.testConnection().catch(err => {
   console.warn('⚠️  Cloud Storage not available:', err.message);
 });

@@ -1,18 +1,16 @@
-// server/routes/buckets.js - Complete working version with Cloud Storage
+// server/routes/buckets.js - Updated and Secure Cloud Storage Routes
 import express from 'express';
 import multer from 'multer';
 import { auth } from '../middleware/auth.js';
-import { validateImageUpload, imageUploadRateLimit } from '../middleware/validation.js';
+import { imageUploadRateLimit } from '../middleware/validation.js';
 import cloudStorageService from '../services/cloudStorageService.js';
 
 const router = express.Router();
 
-// Configure multer for memory storage
+// Configure multer for in-memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (allowedTypes.includes(file.mimetype)) {
@@ -23,215 +21,91 @@ const upload = multer({
   }
 });
 
-// Health check for bucket routes and Cloud Storage
+// Health check
 router.get('/health', async (req, res) => {
   try {
     const healthStatus = await cloudStorageService.healthCheck();
-    
-    res.json({
-      success: true,
-      message: 'Bucket routes are working',
-      cloudStorage: healthStatus,
-      timestamp: new Date().toISOString()
-    });
+    res.json({ success: true, message: 'Bucket routes OK', cloudStorage: healthStatus, timestamp: new Date().toISOString() });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Health check failed',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Health check failed', error: error.message });
   }
 });
 
-// Upload single image
-router.post('/upload', 
-  auth, 
-  imageUploadRateLimit,
-  upload.single('image'),
-  async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          message: 'No image file provided'
-        });
-      }
+// Upload single image to GCS
+router.post('/upload', auth, imageUploadRateLimit, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'No image file provided' });
 
-      const { folder = 'pets', petId } = req.body;
-      
-      const result = await cloudStorageService.uploadImage(
-        req.file.buffer,
-        req.file.originalname,
-        folder,
-        petId
-      );
-
-      res.status(201).json({
-        success: true,
-        message: 'Image uploaded successfully',
-        data: result
-      });
-
-    } catch (error) {
-      console.error('Upload error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to upload image',
-        error: error.message
-      });
-    }
+    const { folder = 'pets', petId } = req.body;
+    const result = await cloudStorageService.uploadImage(req.file.buffer, req.file.originalname, folder, petId);
+    res.status(201).json({ success: true, message: 'Image uploaded', data: result });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ success: false, message: 'Upload failed', error: error.message });
   }
-);
+});
 
 // Upload multiple images
-router.post('/upload-multiple',
-  auth,
-  imageUploadRateLimit,
-  upload.array('images', 5), // Max 5 images
-  async (req, res) => {
-    try {
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'No image files provided'
-        });
-      }
+router.post('/upload-multiple', auth, imageUploadRateLimit, upload.array('images', 5), async (req, res) => {
+  try {
+    if (!req.files?.length) return res.status(400).json({ success: false, message: 'No image files provided' });
 
-      const { folder = 'pets', petId } = req.body;
-      
-      const result = await cloudStorageService.uploadMultipleImages(
-        req.files,
-        folder,
-        petId
-      );
-
-      res.status(201).json({
-        success: true,
-        message: 'Images uploaded successfully',
-        data: result
-      });
-
-    } catch (error) {
-      console.error('Multiple upload error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to upload images',
-        error: error.message
-      });
-    }
+    const { folder = 'pets', petId } = req.body;
+    const result = await cloudStorageService.uploadMultipleImages(req.files, folder, petId);
+    res.status(201).json({ success: true, message: 'Images uploaded', data: result });
+  } catch (error) {
+    console.error('Multiple upload error:', error);
+    res.status(500).json({ success: false, message: 'Multi-upload failed', error: error.message });
   }
-);
+});
 
-// List images in bucket
-router.get('/images',
-  auth,
-  async (req, res) => {
-    try {
-      const { folder = '', limit = 100 } = req.query;
-      
-      const images = await cloudStorageService.listImages(folder, parseInt(limit));
-      
-      res.json({
-        success: true,
-        data: images,
-        count: images.length
-      });
-
-    } catch (error) {
-      console.error('List images error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to list images',
-        error: error.message
-      });
-    }
+// List images
+router.get('/images', auth, async (req, res) => {
+  try {
+    const { folder = '', limit = 100 } = req.query;
+    const images = await cloudStorageService.listImages(folder, parseInt(limit));
+    res.json({ success: true, data: images, count: images.length });
+  } catch (error) {
+    console.error('List error:', error);
+    res.status(500).json({ success: false, message: 'List failed', error: error.message });
   }
-);
+});
 
-// Delete image
-router.delete('/images/:fileName',
-  auth,
-  async (req, res) => {
-    try {
-      // Decode the filename in case it contains special characters
-      const fileName = decodeURIComponent(req.params.fileName);
-      
-      const result = await cloudStorageService.deleteImage(fileName);
-      
-      res.json({
-        success: true,
-        message: 'Image deleted successfully',
-        data: result
-      });
-
-    } catch (error) {
-      console.error('Delete error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to delete image',
-        error: error.message
-      });
-    }
+// Delete image by filename
+router.delete('/images/:fileName', auth, async (req, res) => {
+  try {
+    const fileName = decodeURIComponent(req.params.fileName);
+    const result = await cloudStorageService.deleteImage(fileName);
+    res.json({ success: true, message: 'Image deleted', data: result });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ success: false, message: 'Delete failed', error: error.message });
   }
-);
+});
 
-// Get signed URL for temporary access
-router.post('/signed-url',
-  auth,
-  async (req, res) => {
-    try {
-      const { fileName, expirationMinutes = 60 } = req.body;
-      
-      if (!fileName) {
-        return res.status(400).json({
-          success: false,
-          message: 'File name is required'
-        });
-      }
-      
-      const url = await cloudStorageService.generateSignedUrl(fileName, expirationMinutes);
-      
-      res.json({
-        success: true,
-        data: { signedUrl: url, expiresIn: `${expirationMinutes} minutes` }
-      });
-
-    } catch (error) {
-      console.error('Signed URL error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to generate signed URL',
-        error: error.message
-      });
-    }
+// Generate signed URL
+router.post('/signed-url', auth, async (req, res) => {
+  try {
+    const { fileName, expirationMinutes = 60 } = req.body;
+    if (!fileName) return res.status(400).json({ success: false, message: 'fileName is required' });
+    const minutes = Math.min(Number(expirationMinutes), 120); // Max 2 hours
+    const url = await cloudStorageService.generateSignedUrl(fileName, minutes);
+    res.json({ success: true, data: { signedUrl: url, expiresIn: `${minutes} minutes` } });
+  } catch (error) {
+    console.error('Signed URL error:', error);
+    res.status(500).json({ success: false, message: 'Signed URL generation failed', error: error.message });
   }
-);
+});
 
-// Get bucket info
-router.get('/info',
-  auth,
-  async (req, res) => {
-    try {
-      const healthStatus = await cloudStorageService.healthCheck();
-      
-      res.json({
-        success: true,
-        message: 'Bucket information',
-        data: {
-          bucketName: process.env.GOOGLE_CLOUD_BUCKET_NAME,
-          projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-          ...healthStatus
-        }
-      });
-    } catch (error) {
-      console.error('Bucket info error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to get bucket info',
-        error: error.message
-      });
-    }
+// Bucket info
+router.get('/info', auth, async (req, res) => {
+  try {
+    const healthStatus = await cloudStorageService.healthCheck();
+    res.json({ success: true, message: 'Bucket info', data: { bucketName: process.env.GOOGLE_CLOUD_BUCKET_NAME, projectId: process.env.GOOGLE_CLOUD_PROJECT_ID, ...healthStatus } });
+  } catch (error) {
+    console.error('Info error:', error);
+    res.status(500).json({ success: false, message: 'Bucket info failed', error: error.message });
   }
-);
+});
 
 export default router;

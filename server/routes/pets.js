@@ -1,6 +1,6 @@
 // server/routes/pets.js - ES6 Module Version WITH IMAGE UPLOAD SUPPORT
 import express from "express";
-import multer from "multer"; // ADD THIS LINE
+import multer from "multer";
 import petController from "../controllers/petController.js";
 import { auth } from "../middleware/auth.js";
 import {
@@ -8,21 +8,21 @@ import {
   validatePetUpdate,
   validateRating,
   validateVote,
-  validateImageUpload, // ADD THIS LINE
+  validateImageUpload,
   handleValidationErrors,
   sanitizeInput,
   generalRateLimit,
-  imageUploadRateLimit, // ADD THIS LINE
+  imageUploadRateLimit,
 } from "../middleware/validation.js";
 
 const router = express.Router();
 
-// ADD THIS MULTER CONFIGURATION FOR GOOGLE CLOUD STORAGE
+// Configure multer for in-memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 5 // Maximum 5 files
+    files: 5,
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
@@ -34,52 +34,48 @@ const upload = multer({
   }
 });
 
-// ✅ Apply rate limiting and sanitization globally to pet routes
+// Apply global middleware
 router.use(generalRateLimit);
 router.use(sanitizeInput);
 
-// 🟢 Public Routes
+// Public Routes
 router.get("/", petController.getAllPets);
 router.get("/featured", petController.getFeaturedPets);
 router.get("/type/:type", petController.getPetsByType);
 router.get("/:id", petController.getPetById);
 
-// 🔒 Protected Routes (authentication required)
-
-// MODIFY THIS ROUTE TO INCLUDE IMAGE UPLOAD
+// Protected Routes
 router.post(
   "/",
   auth,
-  imageUploadRateLimit, // ADD THIS LINE
-  upload.single('image'), // ADD THIS LINE
+  imageUploadRateLimit,
+  upload.single('image'),
   validatePet,
-  validateImageUpload, // ADD THIS LINE
+  validateImageUpload,
   handleValidationErrors,
-  petController.createPet,
+  petController.createPet
 );
 
-// MODIFY THIS ROUTE TO INCLUDE IMAGE UPLOAD
 router.put(
   "/:id",
   auth,
-  imageUploadRateLimit, // ADD THIS LINE
-  upload.single('image'), // ADD THIS LINE
+  imageUploadRateLimit,
+  upload.single('image'),
   validatePetUpdate,
-  validateImageUpload, // ADD THIS LINE
+  validateImageUpload,
   handleValidationErrors,
-  petController.updatePet,
+  petController.updatePet
 );
 
 router.delete("/:id", auth, petController.deletePet);
 
-// MODIFY THIS ROUTE TO USE VOTING RATE LIMIT FROM CONTROLLER
 router.post(
   "/:id/vote",
   auth,
-  petController.votingRateLimit, // CHANGE THIS LINE
+  petController.votingRateLimit,
   validateVote,
   handleValidationErrors,
-  petController.votePet,
+  petController.votePet
 );
 
 router.post(
@@ -87,11 +83,10 @@ router.post(
   auth,
   validateRating,
   handleValidationErrors,
-  petController.ratePet,
+  petController.ratePet
 );
 
-// ADD THESE NEW ROUTES FOR IMAGE MANAGEMENT
-// Add additional image to existing pet
+// Image Management Routes
 router.post(
   "/:id/images",
   auth,
@@ -102,7 +97,6 @@ router.post(
   petController.addImageToPet
 );
 
-// Remove specific image from pet
 router.delete(
   "/:id/images/:imageId",
   auth,
