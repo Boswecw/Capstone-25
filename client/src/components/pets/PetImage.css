@@ -1,0 +1,141 @@
+/* client/src/components/PetImage.css */
+
+.pet-image-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.pet-image-container:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.pet-image {
+  width: 100%;
+  height: 100%;
+  object-fit: scale-down;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.pet-image.loading {
+  opacity: 0;
+}
+
+.pet-image:not(.loading):not(.error) {
+  opacity: 1;
+}
+
+.pet-image:hover {
+  transform: scale(1.1);
+}
+
+.image-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #666;
+}
+
+.image-loading .spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.image-loading span {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.image-error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  color: #666;
+  text-align: center;
+  padding: 20px;
+  backdrop-filter: blur(5px);
+}
+
+.image-error-overlay span {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+  opacity: 0.7;
+}
+
+.image-error-overlay p {
+  margin: 5px 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.image-error-overlay small {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .pet-image-container {
+    height: 180px;
+  }
+
+  .pet-image-container:hover {
+    transform: none;
+  }
+
+  .pet-image:hover {
+    transform: none;
+  }
+}
+
+/* Different sizes */
+.pet-image-container.small {
+  height: 120px;
+}
+
+.pet-image-container.large {
+  height: 300px;
+}
+
+.pet-image-container.square {
+  aspect-ratio: 1;
+  height: auto;
+}
